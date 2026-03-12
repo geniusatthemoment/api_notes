@@ -1,0 +1,52 @@
+- name: Install PostgreSQL packages
+  ansible.builtin.apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+      - python3-psycopg2
+    state: present
+    update_cache: true
+
+- name: Ensure PostgreSQL service is enabled and started
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: Create PostgreSQL user
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql_user }}"
+    password: "{{ postgresql_password }}"
+    role_attr_flags: LOGIN
+
+- name: Create PostgreSQL database
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql_db_name }}"
+    owner: "{{ postgresql_user }}"
+
+- name: Ensure PostgreSQL backup directory exists
+  ansible.builtin.file:
+    path: "{{ postgresql_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy PostgreSQL backup script
+  ansible.builtin.template:
+    src: pg-backup.sh.j2
+    dest: /usr/local/bin/pg-backup.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Add cron job for PostgreSQL backups
+  ansible.builtin.cron:
+    name: "PostgreSQL backup"
+    minute: "30"
+    hour: "2"
+    job: "/usr/local/bin/pg-backup.sh"

@@ -1,0 +1,62 @@
+- name: Ensure redis exporter group exists
+  ansible.builtin.group:
+    name: "{{ redis_exporter_group }}"
+    state: present
+
+- name: Ensure redis exporter user exists
+  ansible.builtin.user:
+    name: "{{ redis_exporter_user }}"
+    group: "{{ redis_exporter_group }}"
+    shell: /usr/sbin/nologin
+    create_home: false
+    system: true
+
+- name: Ensure redis exporter directory exists
+  ansible.builtin.file:
+    path: "{{ redis_exporter_bin_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download redis exporter archive
+  ansible.builtin.get_url:
+    url: "https://github.com/oliver006/redis_exporter/releases/download/v{{ redis_exporter_version }}/redis_exporter-v{{ redis_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/redis_exporter-v{{ redis_exporter_version }}.linux-amd64.tar.gz"
+    mode: "0644"
+
+- name: Extract redis exporter archive
+  ansible.builtin.unarchive:
+    src: "/tmp/redis_exporter-v{{ redis_exporter_version }}.linux-amd64.tar.gz"
+    dest: /tmp
+    remote_src: true
+
+- name: Install redis exporter binary
+  ansible.builtin.copy:
+    src: "/tmp/redis_exporter-v{{ redis_exporter_version }}.linux-amd64/redis_exporter"
+    dest: "{{ redis_exporter_bin_dir }}/redis_exporter"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  notify: restart redis exporter
+
+- name: Deploy redis exporter systemd service
+  ansible.builtin.template:
+    src: redis-exporter.service.j2
+    dest: /etc/systemd/system/redis-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart redis exporter
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure redis exporter service is enabled and started
+  ansible.builtin.systemd:
+    name: redis-exporter
+    state: started
+    enabled: true

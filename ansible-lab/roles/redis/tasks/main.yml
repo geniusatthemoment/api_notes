@@ -1,0 +1,73 @@
+- name: Install Redis
+  ansible.builtin.apt:
+    name: redis-server
+    state: present
+    update_cache: true
+
+- name: Ensure Redis log directory exists
+  ansible.builtin.file:
+    path: /var/log/redis
+    state: directory
+    owner: redis
+    group: redis
+    mode: "0755"
+
+- name: Ensure Redis data directories exist
+  ansible.builtin.file:
+    path: "/var/lib/redis/{{ item.port }}"
+    state: directory
+    owner: redis
+    group: redis
+    mode: "0755"
+  loop: "{{ redis_instances }}"
+
+- name: Deploy Redis instance configs
+  ansible.builtin.template:
+    src: redis.conf.j2
+    dest: "/etc/redis/redis-{{ item.port }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ redis_instances }}"
+
+- name: Deploy systemd template for Redis instances
+  ansible.builtin.template:
+    src: redis-instance.service.j2
+    dest: /etc/systemd/system/redis-instance@.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure Redis instance services are enabled and started
+  ansible.builtin.systemd:
+    name: "redis-instance@{{ item.port }}"
+    state: started
+    enabled: true
+  loop: "{{ redis_instances }}"
+
+- name: Ensure Redis backup directory exists
+  ansible.builtin.file:
+    path: "{{ redis_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy Redis backup script
+  ansible.builtin.template:
+    src: redis-backup.sh.j2
+    dest: /usr/local/bin/redis-backup.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Add cron job for Redis backups
+  ansible.builtin.cron:
+    name: "Redis backup"
+    minute: "0"
+    hour: "3"
+    job: "/usr/local/bin/redis-backup.sh"

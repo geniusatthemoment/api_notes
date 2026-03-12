@@ -1,0 +1,5 @@
+- name: Configure Redis instances
+  hosts: redis_hosts
+  become: true
+  roles:
+    - redis

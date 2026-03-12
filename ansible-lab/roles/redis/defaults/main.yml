@@ -1,0 +1,22 @@
+redis_bind: "127.0.0.1"
+redis_password: "StrongRedisPassword"
+redis_master_port: 6379
+
+redis_instances:
+  - name: redis-6379
+    port: 6379
+    role: master
+    replicaof: ""
+
+  - name: redis-6380
+    port: 6380
+    role: replica
+    replicaof: "127.0.0.1 6379"
+
+  - name: redis-6381
+    port: 6381
+    role: replica
+    replicaof: "127.0.0.1 6379"
+
+redis_backup_dir: /opt/backups/redis
+backup_retention_days: 7

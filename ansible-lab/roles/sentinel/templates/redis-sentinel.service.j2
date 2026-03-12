@@ -1,0 +1,14 @@
+[Unit]
+Description=Redis Sentinel on port %i
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/redis-server /etc/redis/sentinel-%i.conf --sentinel --supervised systemd
+ExecStop=/usr/bin/redis-cli -p %i shutdown
+Restart=always
+User=redis
+Group=redis
+
+[Install]
+WantedBy=multi-user.target

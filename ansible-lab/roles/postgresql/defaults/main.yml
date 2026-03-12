@@ -1,0 +1,5 @@
+postgresql_db_name: myappdb
+postgresql_user: myappuser
+postgresql_password: "StrongPostgresPass123"
+postgresql_backup_dir: /opt/backups/postgresql
+backup_retention_days: 7

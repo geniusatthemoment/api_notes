@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+BACKUP_DIR="{{ postgresql_backup_dir }}"
+DATE=$(date +%F_%H-%M-%S)
+
+mkdir -p "$BACKUP_DIR"
+
+sudo -u postgres pg_dump {{ postgresql_db_name }} > "$BACKUP_DIR/{{ postgresql_db_name }}-$DATE.sql"
+
+find "$BACKUP_DIR" -type f -name "*.sql" -mtime +{{ backup_retention_days }} -delete

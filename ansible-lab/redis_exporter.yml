@@ -1,0 +1,5 @@
+- name: Configure Redis Exporter
+  hosts: redis_hosts
+  become: true
+  roles:
+    - redis_exporter

@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+BACKUP_DIR="{{ redis_backup_dir }}"
+DATE=$(date +%F_%H-%M-%S)
+
+mkdir -p "$BACKUP_DIR"
+
+for port in {% for inst in redis_instances %}{{ inst.port }} {% endfor %}; do
+  INSTANCE_DIR="/var/lib/redis/$port"
+
+  if [ -f "$INSTANCE_DIR/dump.rdb" ]; then
+    cp "$INSTANCE_DIR/dump.rdb" "$BACKUP_DIR/redis-${port}-$DATE.rdb"
+  fi
+
+  if [ -f "$INSTANCE_DIR/appendonly.aof" ]; then
+    cp "$INSTANCE_DIR/appendonly.aof" "$BACKUP_DIR/redis-${port}-$DATE.aof"
+  fi
+done
+
+find "$BACKUP_DIR" -type f -mtime +{{ backup_retention_days }} -delete

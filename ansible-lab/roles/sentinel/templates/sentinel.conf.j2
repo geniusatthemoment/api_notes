@@ -1,0 +1,18 @@
+port {{ item.port }}
+bind 127.0.0.1
+
+daemonize no
+protected-mode yes
+
+dir /var/lib/redis/sentinel-{{ item.port }}
+
+sentinel monitor {{ redis_master_name }} {{ redis_master_host }} {{ redis_master_port }} {{ sentinel_quorum }}
+
+sentinel auth-pass {{ redis_master_name }} {{ redis_password }}
+
+sentinel down-after-milliseconds {{ redis_master_name }} 5000
+sentinel failover-timeout {{ redis_master_name }} 60000
+sentinel parallel-syncs {{ redis_master_name }} 1
+
+logfile /var/log/redis/sentinel-{{ item.port }}.log
+pidfile /run/redis-sentinel-{{ item.port }}.pid

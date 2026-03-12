@@ -1,0 +1,34 @@
+- name: Ensure sentinel data directories exist
+  ansible.builtin.file:
+    path: "/var/lib/redis/sentinel-{{ item.port }}"
+    state: directory
+    owner: redis
+    group: redis
+    mode: "0755"
+  loop: "{{ sentinel_instances }}"
+
+- name: Deploy sentinel configs
+  ansible.builtin.template:
+    src: sentinel.conf.j2
+    dest: "/etc/redis/sentinel-{{ item.port }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ sentinel_instances }}"
+
+- name: Deploy sentinel systemd template
+  ansible.builtin.template:
+    src: redis-sentinel.service.j2
+    dest: /etc/systemd/system/redis-sentinel@.service
+    mode: "0644"
+  notify: reload systemd
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Start sentinel instances
+  ansible.builtin.systemd:
+    name: "redis-sentinel@{{ item.port }}"
+    state: started
+    enabled: true
+  loop: "{{ sentinel_instances }}"

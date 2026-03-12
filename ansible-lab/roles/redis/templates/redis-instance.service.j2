@@ -1,0 +1,18 @@
+[Unit]
+Description=Redis instance on port %i
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/redis-server /etc/redis/redis-%i.conf --supervised systemd
+ExecStop=/usr/bin/redis-cli -p %i -a {{ redis_password }} shutdown
+Restart=always
+User=redis
+Group=redis
+RuntimeDirectory=redis
+RuntimeDirectoryMode=2755
+
+LimitNOFILE=10032
+
+[Install]
+WantedBy=multi-user.target

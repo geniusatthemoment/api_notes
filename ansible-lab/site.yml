@@ -1,0 +1,10 @@
+---
+- name: Full infrastructure provisioning
+  hosts: all
+  become: true
+
+  roles:
+    - postgresql
+    - redis
+    - sentinel
+    - redis_exporter

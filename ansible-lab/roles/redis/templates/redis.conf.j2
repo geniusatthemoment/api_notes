@@ -1,0 +1,23 @@
+bind {{ redis_bind }}
+port {{ item.port }}
+
+protected-mode yes
+daemonize no
+supervised systemd
+
+dir /var/lib/redis/{{ item.port }}
+
+dbfilename dump.rdb
+
+requirepass {{ redis_password }}
+masterauth {{ redis_password }}
+
+appendonly yes
+appendfilename "appendonly.aof"
+
+pidfile /run/redis-{{ item.port }}.pid
+logfile /var/log/redis/redis-{{ item.port }}.log
+
+{% if item.role == "replica" %}
+replicaof {{ item.replicaof }}
+{% endif %}

@@ -1,0 +1,12 @@
+sentinel_instances:
+  - port: 26379
+  - port: 26380
+  - port: 26381
+
+redis_master_name: mymaster
+redis_master_host: 127.0.0.1
+redis_master_port: 6379
+
+redis_password: StrongRedisPassword
+
+sentinel_quorum: 2
