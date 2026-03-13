@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import json
+import os
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -7,26 +8,32 @@ from sqlalchemy import create_engine, text
 
 try:
     from redis.sentinel import Sentinel
-    from redis.exceptions import RedisError
 except ImportError:
     Sentinel = None
-    RedisError = Exception
 
-DATABASE_URL = "postgresql+psycopg2://myuser:strongpass@127.0.0.1:5432/myappdb"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg2://myuser:strongpass@127.0.0.1:5432/myappdb",
+)
+
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "StrongRedisPassword")
+REDIS_MASTER_NAME = os.getenv("REDIS_MASTER_NAME", "mymaster")
 
 SENTINELS = [
-    ("127.0.0.1", 26379),
-    ("127.0.0.1", 26380),
-    ("127.0.0.1", 26381),
+    (os.getenv("SENTINEL_1_HOST", "127.0.0.1"), int(os.getenv("SENTINEL_1_PORT", "26379"))),
+    (os.getenv("SENTINEL_2_HOST", "127.0.0.1"), int(os.getenv("SENTINEL_2_PORT", "26380"))),
+    (os.getenv("SENTINEL_3_HOST", "127.0.0.1"), int(os.getenv("SENTINEL_3_PORT", "26381"))),
 ]
-REDIS_MASTER_NAME = "mymaster"
+
 NOTE_TTL_SECONDS = 300
 NOTES_LIST_TTL_SECONDS = 120
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
+
 class NoteCreate(BaseModel):
     text: str
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,6 +59,7 @@ async def lifespan(app: FastAPI):
                 REDIS_MASTER_NAME,
                 socket_timeout=0.5,
                 decode_responses=True,
+                password=REDIS_PASSWORD,
             )
             redis_master.ping()
             app.state.redis = redis_master
@@ -63,13 +71,17 @@ async def lifespan(app: FastAPI):
     yield
     engine.dispose()
 
+
 app = FastAPI(title="FastAPI + Postgres + Redis", lifespan=lifespan)
+
 
 def note_key(note_id: int) -> str:
     return f"cache:note:{note_id}"
 
+
 def notes_list_key(limit: int) -> str:
     return f"cache:notes:list:{limit}"
+
 
 def safe_redis_get(key: str):
     r = app.state.redis
@@ -80,6 +92,7 @@ def safe_redis_get(key: str):
     except Exception:
         return None
 
+
 def safe_redis_set(key: str, value: str, ttl: int):
     r = app.state.redis
     if r is None:
@@ -88,6 +101,7 @@ def safe_redis_set(key: str, value: str, ttl: int):
         r.set(key, value, ex=ttl)
     except Exception:
         pass
+
 
 def safe_redis_delete(*keys: str):
     r = app.state.redis
@@ -98,6 +112,7 @@ def safe_redis_delete(*keys: str):
             r.delete(*keys)
     except Exception:
         pass
+
 
 @app.get("/health")
 def health():
@@ -110,8 +125,9 @@ def health():
     return {
         "status": "ok",
         "db": "ok",
-        "redis": "ok" if app.state.redis is not None else "degraded"
+        "redis": "ok" if app.state.redis is not None else "degraded",
     }
+
 
 @app.post("/notes")
 def create_note(body: NoteCreate):
@@ -129,6 +145,7 @@ def create_note(body: NoteCreate):
 
     return result
 
+
 @app.get("/notes")
 def list_notes(limit: int = 50):
     key = notes_list_key(limit)
@@ -145,6 +162,7 @@ def list_notes(limit: int = 50):
     result = [dict(r) for r in rows]
     safe_redis_set(key, json.dumps(result, default=str), NOTES_LIST_TTL_SECONDS)
     return result
+
 
 @app.get("/notes/{note_id}")
 def get_note(note_id: int):
@@ -166,6 +184,7 @@ def get_note(note_id: int):
     safe_redis_set(key, json.dumps(result, default=str), NOTE_TTL_SECONDS)
     return result
 
+
 @app.delete("/notes/{note_id}")
 def delete_note(note_id: int):
     with engine.begin() as conn:
@@ -182,5 +201,3 @@ def delete_note(note_id: int):
         safe_redis_delete(notes_list_key(lim))
 
     return {"deleted": note_id}
-
-#new_commit
