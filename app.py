@@ -201,3 +201,5 @@ def delete_note(note_id: int):
         safe_redis_delete(notes_list_key(lim))
 
     return {"deleted": note_id}
+
+#new_commit
